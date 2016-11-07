@@ -5,9 +5,7 @@ import SentenceStruct.*;
 import Structures.IndexMap;
 import util.IO;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 
 public class Projection {
@@ -23,7 +21,7 @@ public class Projection {
         String projectedTargetFile = args[3];
         String sourceClusterFilePath = args[4];
 
-        BufferedWriter projectedFileWriter = new BufferedWriter(new FileWriter(projectedTargetFile, true));
+        BufferedWriter projectedFileWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(projectedTargetFile),"UTF-8"));
 
         Alignment alignment = new Alignment(alignmentFile);
         HashMap<Integer, HashMap<Integer, Integer>> alignmentDic = alignment.getSourceTargetAlignmentDic();
@@ -33,13 +31,17 @@ public class Projection {
         ArrayList<String> targetSents = IO.readCoNLLFile(targetFile);
 
         for (int senId = 0; senId < sourceSents.size(); senId++) {
-            if (senId%1000 == 0)
+            if (senId%100000 == 0)
                 System.out.print(senId+"...");
             Sentence sourceSen = new Sentence(sourceSents.get(senId), sourceIndexMap);
-            Object[] projectionOutput = project(sourceSen, alignmentDic.get(senId));
-            HashMap<Integer, String> projectedPIndices = (HashMap<Integer, String>) projectionOutput[0];
-            TreeMap<Integer, TreeMap<Integer, String>> projectedArgIndices = (TreeMap<Integer, TreeMap<Integer, String>>) projectionOutput[1];
-            writeProjectedRoles(getSentenceForOutput(targetSents.get(senId)) ,projectedPIndices, projectedArgIndices,projectedFileWriter);
+            //check percentage of aligned words in the source sentence
+            double alignedWordsPercentage =  ((double) alignmentDic.get(senId).keySet().size()/ sourceSen.getLength());
+            if (alignedWordsPercentage >= 0.8) {
+                Object[] projectionOutput = project(sourceSen, alignmentDic.get(senId));
+                HashMap<Integer, String> projectedPIndices = (HashMap<Integer, String>) projectionOutput[0];
+                TreeMap<Integer, TreeMap<Integer, String>> projectedArgIndices = (TreeMap<Integer, TreeMap<Integer, String>>) projectionOutput[1];
+                writeProjectedRoles(getSentenceForOutput(targetSents.get(senId)), projectedPIndices, projectedArgIndices, projectedFileWriter);
+            }
         }
         System.out.print(sourceSents.size()+"\n");
         projectedFileWriter.flush();

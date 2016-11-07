@@ -10,7 +10,7 @@ import java.util.zip.GZIPOutputStream;
 public class IO {
 
     public static ArrayList<String> readCoNLLFile(String coNLLFile) throws IOException {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(coNLLFile)));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(coNLLFile),"UTF-8"));
         ArrayList<String> sentences = new ArrayList<String>();
         String line2read = "";
         int counter = 0;

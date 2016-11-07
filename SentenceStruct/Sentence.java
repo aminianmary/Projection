@@ -284,4 +284,8 @@ public class Sentence {
             pa.getPredicate().setPredicateAutoLabel(pdAutoLabels.get(pIdx));
         }
     }
+
+    public int getLength (){
+        return words.length;
+    }
 }
