@@ -20,36 +20,60 @@ public class Projection {
         String alignmentFile = args[2];
         String projectedTargetFile = args[3];
         String sourceClusterFilePath = args[4];
+        String targetClusterFilePath = args[5];
+        double alignedWordsProportion = Double.parseDouble(args[6]);
 
         BufferedWriter projectedFileWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(projectedTargetFile),"UTF-8"));
+        BufferedWriter projectedSentencesIDWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(projectedTargetFile+".ids"),"UTF-8"));
 
         Alignment alignment = new Alignment(alignmentFile);
         HashMap<Integer, HashMap<Integer, Integer>> alignmentDic = alignment.getSourceTargetAlignmentDic();
+
         final IndexMap sourceIndexMap = new IndexMap(sourceFile, sourceClusterFilePath);
+        final IndexMap targetIndexMap = new IndexMap(targetFile, targetClusterFilePath);
 
         ArrayList<String> sourceSents = IO.readCoNLLFile(sourceFile);
         ArrayList<String> targetSents = IO.readCoNLLFile(targetFile);
+        int numOfProjectedSentence =0;
 
         for (int senId = 0; senId < sourceSents.size(); senId++) {
             if (senId%100000 == 0)
-                System.out.print(senId+"...");
+                System.out.print(senId +"...");
             Sentence sourceSen = new Sentence(sourceSents.get(senId), sourceIndexMap);
+            Sentence targetSen = new Sentence(targetSents.get(senId), targetIndexMap);
+            HashSet<Integer> targetWordsWithoutAlignment = getTargetIndicesWithoutAlignment(
+                    alignment.getTargetWordsWithAlignment4ThisSentence(senId),targetSen.getLength());
+
             //check percentage of aligned words in the source sentence
             double alignedWordsPercentage =  ((double) alignmentDic.get(senId).keySet().size()/ sourceSen.getLength());
-            if (alignedWordsPercentage >= 0.8) {
-                Object[] projectionOutput = project(sourceSen, alignmentDic.get(senId));
+            if (alignedWordsPercentage >= alignedWordsProportion) {
+                numOfProjectedSentence ++;
+                projectedSentencesIDWriter.write(senId+"\n");
+                Object[] projectionOutput = project(sourceSen, targetSen, alignmentDic.get(senId), targetIndexMap);
                 HashMap<Integer, String> projectedPIndices = (HashMap<Integer, String>) projectionOutput[0];
                 TreeMap<Integer, TreeMap<Integer, String>> projectedArgIndices = (TreeMap<Integer, TreeMap<Integer, String>>) projectionOutput[1];
-                writeProjectedRoles(getSentenceForOutput(targetSents.get(senId)), projectedPIndices, projectedArgIndices, projectedFileWriter);
+
+                //assert none of target words without alignment are in the projection outputs
+                if (foundUndecidedTargetWordsInProjectionOutputs(projectedPIndices.keySet(), projectedArgIndices.keySet(),
+                        targetWordsWithoutAlignment))
+                    System.out.print("Undecided target words found in the projection outputs --> Sentence "+ senId +" c");
+
+                writeProjectedRoles(getSentenceForOutput(targetSents.get(senId)), targetWordsWithoutAlignment,
+                        projectedPIndices, projectedArgIndices, projectedFileWriter);
             }
         }
         System.out.print(sourceSents.size()+"\n");
+        System.out.println("Number of projected sentences "+
+                numOfProjectedSentence+"/"+sourceSents.size() +" ("+((double) numOfProjectedSentence/sourceSents.size())*100+"%)");
         projectedFileWriter.flush();
         projectedFileWriter.close();
+        projectedSentencesIDWriter.flush();
+        projectedSentencesIDWriter.close();
     }
 
 
-    public static Object[] project(Sentence sourceSent, HashMap<Integer, Integer> alignmentDic) throws Exception {
+    public static Object[] project(Sentence sourceSent, Sentence targetSent, HashMap<Integer, Integer> alignmentDic,
+                                   IndexMap targetIndexMap) throws Exception {
         ArrayList<PA> sourcePAs = sourceSent.getPredicateArguments().getPredicateArgumentsAsArray();
         ArrayList<PA> targetPAs = new ArrayList<>();
         HashMap<Integer, String> projectedPIndices = new HashMap<>();
@@ -60,72 +84,81 @@ public class Projection {
 
             if (alignmentDic.containsKey(sourcePIdx)) {
                 int targetPIdx = alignmentDic.get(sourcePIdx);
-                Predicate projectedPredicate = new Predicate();
-                projectedPredicate.setPredicateIndex(targetPIdx);
-                projectedPredicate.setPredicateAutoLabel(pa.getPredicate().getPredicateGoldLabel());
-                projectedPIndices.put(targetPIdx, pa.getPredicate().getPredicateGoldLabel());
 
-                ArrayList<Argument> sourceArgs = pa.getArguments();
-                ArrayList<Argument> projectedArgs = new ArrayList<>();
+                if (!targetSent.isPunc(targetPIdx, targetIndexMap)) {
+                    Predicate projectedPredicate = new Predicate();
+                    projectedPredicate.setPredicateIndex(targetPIdx);
+                    projectedPredicate.setPredicateAutoLabel(pa.getPredicate().getPredicateGoldLabel());
+                    projectedPIndices.put(targetPIdx, pa.getPredicate().getPredicateGoldLabel());
 
-                for (Argument arg : sourceArgs) {
-                    int sourceAIdx = arg.getIndex();
-                    String sourceAType = arg.getType();
+                    ArrayList<Argument> sourceArgs = pa.getArguments();
+                    ArrayList<Argument> projectedArgs = new ArrayList<>();
 
-                    if (alignmentDic.containsKey(sourceAIdx)) {
-                        int targetArgIndex = alignmentDic.get(sourceAIdx);
-                        Argument projectedArg = new Argument(targetArgIndex, sourceAType);
-                        projectedArgs.add(projectedArg);
+                    for (Argument arg : sourceArgs) {
+                        int sourceAIdx = arg.getIndex();
+                        String sourceAType = arg.getType();
 
-                        if (!projectedArgIndices.containsKey(targetArgIndex)) {
-                            TreeMap<Integer, String> argInfo = new TreeMap<>();
-                            argInfo.put(targetPIdx, sourceAType);
-                            projectedArgIndices.put(targetArgIndex, argInfo);
-                        } else {
-                            projectedArgIndices.get(targetArgIndex).put(targetPIdx, sourceAType);
+                        if (alignmentDic.containsKey(sourceAIdx)) {
+                            int targetArgIndex = alignmentDic.get(sourceAIdx);
+
+                            if (!targetSent.isPunc(targetArgIndex, targetIndexMap)) {
+                                Argument projectedArg = new Argument(targetArgIndex, sourceAType);
+                                projectedArgs.add(projectedArg);
+
+                                if (!projectedArgIndices.containsKey(targetArgIndex)) {
+                                    TreeMap<Integer, String> argInfo = new TreeMap<>();
+                                    argInfo.put(targetPIdx, sourceAType);
+                                    projectedArgIndices.put(targetArgIndex, argInfo);
+                                } else {
+                                    projectedArgIndices.get(targetArgIndex).put(targetPIdx, sourceAType);
+                                }
+                            }
                         }
                     }
+                    targetPAs.add(new PA(projectedPredicate, projectedArgs));
                 }
-                targetPAs.add(new PA(projectedPredicate, projectedArgs));
             }
         }
         return new Object[]{projectedPIndices, projectedArgIndices, new PAs(targetPAs)};
     }
 
-    public static void writeProjectedRoles(ArrayList<String> targetWords, HashMap<Integer, String> projectedPIndices,
+    public static void writeProjectedRoles(ArrayList<String> targetWords, HashSet<Integer> undecidedList,
+                                           HashMap<Integer, String> projectedPIndices,
                                            TreeMap<Integer, TreeMap<Integer, String>> projectedArgIndices,
                                            BufferedWriter projectedFileWriter) throws IOException {
         ArrayList<Integer> targetPIndices = new ArrayList<>(projectedPIndices.keySet());
         Collections.sort(targetPIndices);
-
-        int wordIndex = -1;
+        int wordIndex = 0;
         for (String word : targetWords) {
             wordIndex++;
             projectedFileWriter.write(word);
 
-            //write projected predicates
-            if (targetPIndices.contains(wordIndex))
-                projectedFileWriter.write("\tY\t" + projectedPIndices.get(wordIndex));
-            else
-                projectedFileWriter.write("\t_\t_");
+            if (undecidedList.contains(wordIndex))
+                for (int i=0; i< targetPIndices.size()+2; i++)
+                    projectedFileWriter.write("\t?");
+            else{
+                //write projected predicates
+                if (targetPIndices.contains(wordIndex))
+                    projectedFileWriter.write("\tY\t" + projectedPIndices.get(wordIndex));
+                else
+                    projectedFileWriter.write("\t_\t_");
 
-            //write projected arguments
-            if (projectedArgIndices.containsKey(wordIndex)) {
-                for (int pIndex : targetPIndices) {
-                    if (projectedArgIndices.get(wordIndex).containsKey(pIndex))
-                        projectedFileWriter.write("\t" + projectedArgIndices.get(wordIndex).get(pIndex));
-                    else
+                //write projected arguments
+                if (projectedArgIndices.containsKey(wordIndex)) {
+                    for (int pIndex : targetPIndices) {
+                        if (projectedArgIndices.get(wordIndex).containsKey(pIndex))
+                            projectedFileWriter.write("\t" + projectedArgIndices.get(wordIndex).get(pIndex));
+                        else
+                            projectedFileWriter.write("\t_");
+                    }
+                }else
+                {
+                    for (int pIndex : targetPIndices)
                         projectedFileWriter.write("\t_");
                 }
-            }else
-            {
-                for (int pIndex : targetPIndices)
-                    projectedFileWriter.write("\t_");
             }
-
             projectedFileWriter.write("\n");
         }
-
         projectedFileWriter.write("\n");
     }
 
@@ -141,5 +174,27 @@ public class Projection {
             sentenceForOutput.add(filedsForOutput.trim());
         }
         return sentenceForOutput;
+    }
+
+
+    public static boolean foundUndecidedTargetWordsInProjectionOutputs (Set<Integer> projectedPIndices,
+                                                                Set<Integer> projectedArgIndices,
+                                                                HashSet<Integer> undecidedTargetIndices){
+        HashSet<Integer> p = new HashSet<>(projectedPIndices);
+        HashSet<Integer> u = new HashSet<>(undecidedTargetIndices);
+        p.addAll(projectedArgIndices);
+        u.retainAll(p);
+        if (u.size() > 0)
+            return true;
+        else
+            return false;
+    }
+
+    public static HashSet<Integer> getTargetIndicesWithoutAlignment (HashSet<Integer> targetIndicesWithAlignment, int sentenceLength){
+        HashSet<Integer> targetWordsWithoutAlignment = new HashSet<>();
+        for (int i =0; i< sentenceLength; i++)
+            if (!targetIndicesWithAlignment.contains(i))
+                targetWordsWithoutAlignment.add(i);
+        return targetWordsWithoutAlignment;
     }
 }

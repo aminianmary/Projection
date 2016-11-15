@@ -288,4 +288,10 @@ public class Sentence {
     public int getLength (){
         return words.length;
     }
+
+    public boolean isPunc (int wordIndex, IndexMap indexMap) throws Exception{
+        if (indexMap.int2str(posTags[wordIndex]).equals("."))
+            return true;
+        return false;
+    }
 }

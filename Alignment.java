@@ -2,6 +2,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 
 /**
  * Created by Maryam Aminian on 10/17/16.
@@ -47,9 +48,9 @@ public class Alignment {
                 String[] alignWords = alignLine2Read.split(" ");
 
                 for (int i = 0; i < alignWords.length; i++) {
-                    // indices from 1
-                    Integer sourceIndex = Integer.parseInt(alignWords[i].toString().split("-")[0]) +1;
-                    Integer targetIndex = Integer.parseInt(alignWords[i].split("-")[1]) +1;
+                    //indices from 1
+                    Integer sourceIndex = Integer.parseInt(alignWords[i].toString().split("-")[0]);
+                    Integer targetIndex = Integer.parseInt(alignWords[i].split("-")[1]);
 
                     if (!sourceTargetAlignDic.get(sentenceID).containsKey(sourceIndex))
                         sourceTargetAlignDic.get(sentenceID).put(sourceIndex, targetIndex);
@@ -73,5 +74,9 @@ public class Alignment {
         System.out.print(sentenceID+"\n");
         alignmentReader.close();
         return new Object[]{sourceTargetAlignDic, targetSourceAlignDic};
+    }
+
+    public HashSet<Integer> getTargetWordsWithAlignment4ThisSentence (int senID){
+        return new HashSet<>(targetSourceAlignmentDic.get(senID).keySet());
     }
 }
