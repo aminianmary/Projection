@@ -21,7 +21,7 @@ public class Projection {
         String projectedTargetFile = args[3];
         String sourceClusterFilePath = args[4];
         String targetClusterFilePath = args[5];
-        double alignedWordsProportion = Double.parseDouble(args[6]);
+        double undecidedThreshold = Double.parseDouble(args[6]);
 
         BufferedWriter projectedFileWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(projectedTargetFile),"UTF-8"));
         BufferedWriter projectedSentencesIDWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(projectedTargetFile+".ids"),"UTF-8"));
@@ -35,6 +35,8 @@ public class Projection {
         ArrayList<String> sourceSents = IO.readCoNLLFile(sourceFile);
         ArrayList<String> targetSents = IO.readCoNLLFile(targetFile);
         int numOfProjectedSentence =0;
+        int projectedSentencesSizeSum = 0;
+        int numOfTrainingInstances = 0;
 
         for (int senId = 0; senId < sourceSents.size(); senId++) {
             if (senId%100000 == 0)
@@ -45,13 +47,15 @@ public class Projection {
                     alignment.getTargetWordsWithAlignment4ThisSentence(senId),targetSen.getLength());
 
             //check percentage of aligned words in the source sentence
-            double alignedWordsPercentage =  ((double) alignmentDic.get(senId).keySet().size()/ sourceSen.getLength());
-            if (alignedWordsPercentage >= alignedWordsProportion) {
+            double undecidedTargetWordsPortion =  ((double) targetWordsWithoutAlignment.size()/ targetSen.getLength());
+            if (undecidedTargetWordsPortion >= undecidedThreshold) {
                 numOfProjectedSentence ++;
+                projectedSentencesSizeSum += targetSen.getLength();
                 projectedSentencesIDWriter.write(senId+"\n");
                 Object[] projectionOutput = project(sourceSen, targetSen, alignmentDic.get(senId), targetIndexMap);
                 HashMap<Integer, String> projectedPIndices = (HashMap<Integer, String>) projectionOutput[0];
                 TreeMap<Integer, TreeMap<Integer, String>> projectedArgIndices = (TreeMap<Integer, TreeMap<Integer, String>>) projectionOutput[1];
+                numOfTrainingInstances += projectedPIndices.size() * (targetSen.getLength()-targetWordsWithoutAlignment.size());
 
                 //assert none of target words without alignment are in the projection outputs
                 if (foundUndecidedTargetWordsInProjectionOutputs(projectedPIndices.keySet(), projectedArgIndices.keySet(),
@@ -65,12 +69,13 @@ public class Projection {
         System.out.print(sourceSents.size()+"\n");
         System.out.println("Number of projected sentences "+
                 numOfProjectedSentence+"/"+sourceSents.size() +" ("+((double) numOfProjectedSentence/sourceSents.size())*100+"%)");
+        System.out.println("Average length of projected sentences: " + (double) projectedSentencesSizeSum/numOfProjectedSentence);
+        System.out.println("Number of training instances in the projected data "+ numOfTrainingInstances);
         projectedFileWriter.flush();
         projectedFileWriter.close();
         projectedSentencesIDWriter.flush();
         projectedSentencesIDWriter.close();
     }
-
 
     public static Object[] project(Sentence sourceSent, Sentence targetSent, HashMap<Integer, Integer> alignmentDic,
                                    IndexMap targetIndexMap) throws Exception {
@@ -175,7 +180,6 @@ public class Projection {
         }
         return sentenceForOutput;
     }
-
 
     public static boolean foundUndecidedTargetWordsInProjectionOutputs (Set<Integer> projectedPIndices,
                                                                 Set<Integer> projectedArgIndices,
