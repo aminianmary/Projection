@@ -27,7 +27,7 @@ public class Alignment {
 
     public Object[] createAlignmentDic
             (String alignmentFile) throws IOException {
-
+        System.out.println("Getting alignment dictionaries...");
         BufferedReader alignmentReader = new BufferedReader(new FileReader(alignmentFile));
         HashMap<Integer, HashMap<Integer, Integer>> sourceTargetAlignDic = new HashMap<Integer, HashMap<Integer, Integer>>();
         HashMap<Integer, HashMap<Integer, Integer>> targetSourceAlignDic = new HashMap<Integer, HashMap<Integer, Integer>>();
@@ -36,9 +36,9 @@ public class Alignment {
 
         while (((alignLine2Read = alignmentReader.readLine()) != null)) {
             sentenceID++;
-            if (sentenceID % 10000 == 0)
+            if (sentenceID % 100000 == 0)
                 System.out.print(sentenceID);
-            else if (sentenceID % 1000 == 0)
+            else if (sentenceID % 10000 == 0)
                 System.out.print(".");
 
             sourceTargetAlignDic.put(sentenceID, new HashMap<Integer, Integer>());
@@ -57,7 +57,7 @@ public class Alignment {
                     else {
                         //removes the noisy alignment
                         sourceTargetAlignDic.get(sentenceID).remove(sourceIndex);
-                        System.out.println("SentenceStruct: " + sentenceID + " source index: " + sourceIndex + " is aligned to multiple target words");
+                        //System.out.println("SentenceStruct: " + sentenceID + " source index: " + sourceIndex + " is aligned to multiple target words");
                     }
 
                     if (!targetSourceAlignDic.get(sentenceID).containsKey(targetIndex))
@@ -67,11 +67,11 @@ public class Alignment {
             } else {
                 //empty alignment
                 if (alignLine2Read.equals("")) {
-                    System.out.println("SentenceStruct " + sentenceID + ": alignment is empty");
+                    //System.out.println("SentenceStruct " + sentenceID + ": alignment is empty");
                 }
             }
         }
-        System.out.print(sentenceID+"\n");
+        System.out.print(sentenceID+"\nDONE!\n");
         alignmentReader.close();
         return new Object[]{sourceTargetAlignDic, targetSourceAlignDic};
     }

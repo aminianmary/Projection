@@ -34,6 +34,7 @@ public class IO {
                 sentence.append("\n");
             }
         }
+        System.out.print("\n");
         return sentences;
     }
 }

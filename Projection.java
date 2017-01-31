@@ -10,10 +10,10 @@ import java.util.*;
 
 public class Projection {
     public static void main(String args[]) throws Exception {
-        //args[0]: source file with semantic roles in the conll09 format
-        //args[1]: target file (each sentence in a separate line)
-        //args[4]: alignment file
-        //args[5]: projected file
+        //args[0]: source file with semantic roles in the conll09 format (input)
+        //args[1]: target file (each sentence in a separate line) (input)
+        //args[4]: alignment file (input)
+        //args[5]: projected file (output)
 
         String sourceFile = args[0]; //source file has supervised SRL
         String targetFile = args[1]; //target file has supervised/gold SRL (for comparing purposes)
@@ -21,7 +21,7 @@ public class Projection {
         String projectedTargetFile = args[3];
         String sourceClusterFilePath = args[4];
         String targetClusterFilePath = args[5];
-        double undecidedThreshold = Double.parseDouble(args[6]);
+        double sentenceTrainingGain = Double.parseDouble(args[6]);
 
         BufferedWriter projectedFileWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(projectedTargetFile),"UTF-8"));
         BufferedWriter projectedSentencesIDWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(projectedTargetFile+".ids"),"UTF-8"));
@@ -37,38 +37,55 @@ public class Projection {
         int numOfProjectedSentence =0;
         int projectedSentencesSizeSum = 0;
         int numOfTrainingInstances = 0;
+        int targetAvgSentenceLength = 0;
+        System.out.println("Projection started...");
 
         for (int senId = 0; senId < sourceSents.size(); senId++) {
-            if (senId%100000 == 0)
-                System.out.print(senId +"...");
+            if (senId % 100000 == 0)
+                System.out.print(senId);
+            else if (senId % 10000 == 0)
+                System.out.print(".");
             Sentence sourceSen = new Sentence(sourceSents.get(senId), sourceIndexMap);
             Sentence targetSen = new Sentence(targetSents.get(senId), targetIndexMap);
             HashSet<Integer> targetWordsWithoutAlignment = getTargetIndicesWithoutAlignment(
-                    alignment.getTargetWordsWithAlignment4ThisSentence(senId),targetSen.getLength());
+                    alignment.getTargetWordsWithAlignment4ThisSentence(senId), targetSen.getLength());
 
-            //check percentage of aligned words in the source sentence
-            double undecidedTargetWordsPortion =  ((double) targetWordsWithoutAlignment.size()/ targetSen.getLength());
-            if (undecidedTargetWordsPortion >= undecidedThreshold) {
-                numOfProjectedSentence ++;
+            targetAvgSentenceLength += targetSen.getLength();
+            Object[] projectionOutput = project(sourceSen, targetSen, alignmentDic.get(senId), targetIndexMap);
+            HashMap<Integer, String> projectedPIndices = (HashMap<Integer, String>) projectionOutput[0];
+            TreeMap<Integer, TreeMap<Integer, String>> projectedArgIndices = (TreeMap<Integer, TreeMap<Integer, String>>) projectionOutput[1];
+            //assert none of target words without alignment are in the projection outputs
+            if (foundUndecidedTargetWordsInProjectionOutputs(projectedPIndices.keySet(), projectedArgIndices.keySet(),
+                    targetWordsWithoutAlignment))
+                System.out.print("\n**NOTE** Undecided target words found in the projection outputs --> Sentence " + senId + "\n");
+
+            //check number of training instances that sentence provides
+            int numOfDecidedTrainingInstancesSentenceProvides = 0;
+            int totalNumOfTrainingInstancesSentenceProvides = projectedPIndices.size() * targetSen.getLength();
+
+            for (int argIdx: projectedArgIndices.keySet())
+                numOfDecidedTrainingInstancesSentenceProvides += projectedArgIndices.get(argIdx).keySet().size();
+
+            double trainingGain = (double) numOfDecidedTrainingInstancesSentenceProvides/totalNumOfTrainingInstancesSentenceProvides;
+            double ratioOfSourceAlignedWords = (double) alignmentDic.get(senId).size() / sourceSen.getLength();
+            double trainGainPerWord = (double) numOfDecidedTrainingInstancesSentenceProvides/targetSen.getLength();
+            //if (trainingGain >= sentenceTrainingGain || numOfDecidedTrainingInstancesSentenceProvides >= 10){
+            //if (ratioOfSourceAlignedWords >= 0.99){
+            if (trainGainPerWord >= sentenceTrainingGain){
+                System.out.println("**INFO** Sentence training gain: "+ trainingGain +" Number of training instances: "+numOfDecidedTrainingInstancesSentenceProvides+" --> included in the projected sentences");
+                numOfProjectedSentence++;
                 projectedSentencesSizeSum += targetSen.getLength();
-                projectedSentencesIDWriter.write(senId+"\n");
-                Object[] projectionOutput = project(sourceSen, targetSen, alignmentDic.get(senId), targetIndexMap);
-                HashMap<Integer, String> projectedPIndices = (HashMap<Integer, String>) projectionOutput[0];
-                TreeMap<Integer, TreeMap<Integer, String>> projectedArgIndices = (TreeMap<Integer, TreeMap<Integer, String>>) projectionOutput[1];
-                numOfTrainingInstances += projectedPIndices.size() * (targetSen.getLength()-targetWordsWithoutAlignment.size());
-
-                //assert none of target words without alignment are in the projection outputs
-                if (foundUndecidedTargetWordsInProjectionOutputs(projectedPIndices.keySet(), projectedArgIndices.keySet(),
-                        targetWordsWithoutAlignment))
-                    System.out.print("Undecided target words found in the projection outputs --> Sentence "+ senId +" c");
-
+                numOfTrainingInstances += numOfDecidedTrainingInstancesSentenceProvides;
+                projectedSentencesIDWriter.write(senId + "\n");
                 writeProjectedRoles(getSentenceForOutput(targetSents.get(senId)), targetWordsWithoutAlignment,
                         projectedPIndices, projectedArgIndices, projectedFileWriter);
-            }
+            }else
+                System.out.println("**INFO** Sentence training gain: "+ trainingGain +" Number of training instances: "+numOfDecidedTrainingInstancesSentenceProvides+" --> excluded from projected sentences");
         }
         System.out.print(sourceSents.size()+"\n");
         System.out.println("Number of projected sentences "+
-                numOfProjectedSentence+"/"+sourceSents.size() +" ("+((double) numOfProjectedSentence/sourceSents.size())*100+"%)");
+                numOfProjectedSentence+"/"+targetSents.size() +" ("+((double) numOfProjectedSentence/targetSents.size())*100+"%)");
+        System.out.println("Average length of target sentences: "+ (double) targetAvgSentenceLength/targetSents.size());
         System.out.println("Average length of projected sentences: " + (double) projectedSentencesSizeSum/numOfProjectedSentence);
         System.out.println("Number of training instances in the projected data "+ numOfTrainingInstances);
         projectedFileWriter.flush();
