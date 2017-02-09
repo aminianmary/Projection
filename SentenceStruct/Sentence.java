@@ -294,4 +294,10 @@ public class Sentence {
             return true;
         return false;
     }
+
+    public boolean isVerb (int wordIndex, IndexMap indexMap) throws Exception{
+        if (indexMap.int2str(posTags[wordIndex]).equals("VERB"))
+            return true;
+        return false;
+    }
 }

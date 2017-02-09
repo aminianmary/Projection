@@ -51,7 +51,7 @@ public class Projection {
                     alignment.getTargetWordsWithAlignment4ThisSentence(senId), targetSen.getLength());
 
             targetAvgSentenceLength += targetSen.getLength();
-            Object[] projectionOutput = project(sourceSen, targetSen, alignmentDic.get(senId), targetIndexMap);
+            Object[] projectionOutput = project(sourceSen, targetSen, alignmentDic.get(senId), sourceIndexMap, targetIndexMap);
             HashMap<Integer, String> projectedPIndices = (HashMap<Integer, String>) projectionOutput[0];
             TreeMap<Integer, TreeMap<Integer, String>> projectedArgIndices = (TreeMap<Integer, TreeMap<Integer, String>>) projectionOutput[1];
             //assert none of target words without alignment are in the projection outputs
@@ -95,7 +95,7 @@ public class Projection {
     }
 
     public static Object[] project(Sentence sourceSent, Sentence targetSent, HashMap<Integer, Integer> alignmentDic,
-                                   IndexMap targetIndexMap) throws Exception {
+                                   IndexMap sourceIndexMap, IndexMap targetIndexMap) throws Exception {
         ArrayList<PA> sourcePAs = sourceSent.getPredicateArguments().getPredicateArgumentsAsArray();
         ArrayList<PA> targetPAs = new ArrayList<>();
         HashMap<Integer, String> projectedPIndices = new HashMap<>();
@@ -107,37 +107,42 @@ public class Projection {
             if (alignmentDic.containsKey(sourcePIdx)) {
                 int targetPIdx = alignmentDic.get(sourcePIdx);
 
+                //check if aligned target word is not a punctuation
                 if (!targetSent.isPunc(targetPIdx, targetIndexMap)) {
-                    Predicate projectedPredicate = new Predicate();
-                    projectedPredicate.setPredicateIndex(targetPIdx);
-                    projectedPredicate.setPredicateAutoLabel(pa.getPredicate().getPredicateGoldLabel());
-                    projectedPIndices.put(targetPIdx, pa.getPredicate().getPredicateGoldLabel());
+                    //verb filter (project a predicate iff both source and target have VERB pos tags),
+                    // prevents verb -> non-verb projection
+                    if (sourceSent.isVerb(sourcePIdx, sourceIndexMap) && targetSent.isVerb(targetPIdx, targetIndexMap)) {
+                        Predicate projectedPredicate = new Predicate();
+                        projectedPredicate.setPredicateIndex(targetPIdx);
+                        projectedPredicate.setPredicateAutoLabel(pa.getPredicate().getPredicateGoldLabel());
+                        projectedPIndices.put(targetPIdx, pa.getPredicate().getPredicateGoldLabel());
 
-                    ArrayList<Argument> sourceArgs = pa.getArguments();
-                    ArrayList<Argument> projectedArgs = new ArrayList<>();
+                        ArrayList<Argument> sourceArgs = pa.getArguments();
+                        ArrayList<Argument> projectedArgs = new ArrayList<>();
 
-                    for (Argument arg : sourceArgs) {
-                        int sourceAIdx = arg.getIndex();
-                        String sourceAType = arg.getType();
+                        for (Argument arg : sourceArgs) {
+                            int sourceAIdx = arg.getIndex();
+                            String sourceAType = arg.getType();
 
-                        if (alignmentDic.containsKey(sourceAIdx)) {
-                            int targetArgIndex = alignmentDic.get(sourceAIdx);
+                            if (alignmentDic.containsKey(sourceAIdx)) {
+                                int targetArgIndex = alignmentDic.get(sourceAIdx);
 
-                            if (!targetSent.isPunc(targetArgIndex, targetIndexMap)) {
-                                Argument projectedArg = new Argument(targetArgIndex, sourceAType);
-                                projectedArgs.add(projectedArg);
+                                if (!targetSent.isPunc(targetArgIndex, targetIndexMap)) {
+                                    Argument projectedArg = new Argument(targetArgIndex, sourceAType);
+                                    projectedArgs.add(projectedArg);
 
-                                if (!projectedArgIndices.containsKey(targetArgIndex)) {
-                                    TreeMap<Integer, String> argInfo = new TreeMap<>();
-                                    argInfo.put(targetPIdx, sourceAType);
-                                    projectedArgIndices.put(targetArgIndex, argInfo);
-                                } else {
-                                    projectedArgIndices.get(targetArgIndex).put(targetPIdx, sourceAType);
+                                    if (!projectedArgIndices.containsKey(targetArgIndex)) {
+                                        TreeMap<Integer, String> argInfo = new TreeMap<>();
+                                        argInfo.put(targetPIdx, sourceAType);
+                                        projectedArgIndices.put(targetArgIndex, argInfo);
+                                    } else {
+                                        projectedArgIndices.get(targetArgIndex).put(targetPIdx, sourceAType);
+                                    }
                                 }
                             }
                         }
+                        targetPAs.add(new PA(projectedPredicate, projectedArgs));
                     }
-                    targetPAs.add(new PA(projectedPredicate, projectedArgs));
                 }
             }
         }
