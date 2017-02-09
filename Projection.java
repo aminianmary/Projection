@@ -111,7 +111,7 @@ public class Projection {
                 if (!targetSent.isPunc(targetPIdx, targetIndexMap)) {
                     //verb filter (project a predicate iff both source and target have VERB pos tags),
                     // prevents verb -> non-verb projection
-                    if (sourceSent.isVerb(sourcePIdx, sourceIndexMap) && targetSent.isVerb(targetPIdx, targetIndexMap)) {
+                    if (sourceSent.isVerb(sourcePIdx, sourceIndexMap) && !targetSent.isVerb(targetPIdx, targetIndexMap)) {
                         Predicate projectedPredicate = new Predicate();
                         projectedPredicate.setPredicateIndex(targetPIdx);
                         projectedPredicate.setPredicateAutoLabel(pa.getPredicate().getPredicateGoldLabel());
@@ -128,15 +128,18 @@ public class Projection {
                                 int targetArgIndex = alignmentDic.get(sourceAIdx);
 
                                 if (!targetSent.isPunc(targetArgIndex, targetIndexMap)) {
-                                    Argument projectedArg = new Argument(targetArgIndex, sourceAType);
+                                    //apply Reattachment filter
+                                    int targetArgIndex_RH = targetSent.getSyntacticHead(targetArgIndex, targetIndexMap);
+
+                                    Argument projectedArg = new Argument(targetArgIndex_RH, sourceAType);
                                     projectedArgs.add(projectedArg);
 
-                                    if (!projectedArgIndices.containsKey(targetArgIndex)) {
+                                    if (!projectedArgIndices.containsKey(targetArgIndex_RH)) {
                                         TreeMap<Integer, String> argInfo = new TreeMap<>();
                                         argInfo.put(targetPIdx, sourceAType);
-                                        projectedArgIndices.put(targetArgIndex, argInfo);
+                                        projectedArgIndices.put(targetArgIndex_RH, argInfo);
                                     } else {
-                                        projectedArgIndices.get(targetArgIndex).put(targetPIdx, sourceAType);
+                                        projectedArgIndices.get(targetArgIndex_RH).put(targetPIdx, sourceAType);
                                     }
                                 }
                             }

@@ -300,4 +300,18 @@ public class Sentence {
             return true;
         return false;
     }
+
+    /**
+     * return the first ancestor of the word which is an immediate dependent of a verb
+     * @param wordIndex
+     * @param indexMap
+     * @return
+     * @throws Exception
+     */
+    public int getSyntacticHead (int wordIndex, IndexMap indexMap) throws Exception{
+        if (isVerb(depHeads[wordIndex], indexMap))
+            return wordIndex;
+        else
+            return getSyntacticHead(depHeads[wordIndex], indexMap);
+    }
 }
