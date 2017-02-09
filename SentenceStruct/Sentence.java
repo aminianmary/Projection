@@ -301,6 +301,13 @@ public class Sentence {
         return false;
     }
 
+    public boolean isRoot (int wordIndex){
+        if (wordIndex == 0)
+            return true;
+        else
+            return false;
+    }
+
     /**
      * return the first ancestor of the word which is an immediate dependent of a verb
      * @param wordIndex
@@ -309,9 +316,9 @@ public class Sentence {
      * @throws Exception
      */
     public int getSyntacticHead (int wordIndex, IndexMap indexMap) throws Exception{
-        if (isVerb(depHeads[wordIndex], indexMap))
+        if (isVerb(depHeads[wordIndex], indexMap) || isRoot(depHeads[wordIndex])) {
             return wordIndex;
-        else
+        }else
             return getSyntacticHead(depHeads[wordIndex], indexMap);
     }
 }

@@ -111,7 +111,7 @@ public class Projection {
                 if (!targetSent.isPunc(targetPIdx, targetIndexMap)) {
                     //verb filter (project a predicate iff both source and target have VERB pos tags),
                     // prevents verb -> non-verb projection
-                    if (sourceSent.isVerb(sourcePIdx, sourceIndexMap) && !targetSent.isVerb(targetPIdx, targetIndexMap)) {
+                    if (sourceSent.isVerb(sourcePIdx, sourceIndexMap) && targetSent.isVerb(targetPIdx, targetIndexMap)) {
                         Predicate projectedPredicate = new Predicate();
                         projectedPredicate.setPredicateIndex(targetPIdx);
                         projectedPredicate.setPredicateAutoLabel(pa.getPredicate().getPredicateGoldLabel());
