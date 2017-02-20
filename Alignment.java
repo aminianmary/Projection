@@ -57,17 +57,14 @@ public class Alignment {
                     else {
                         //removes the noisy alignment
                         sourceTargetAlignDic.get(sentenceID).remove(sourceIndex);
-                        //System.out.println("SentenceStruct: " + sentenceID + " source index: " + sourceIndex + " is aligned to multiple target words");
                     }
 
                     if (!targetSourceAlignDic.get(sentenceID).containsKey(targetIndex))
                         targetSourceAlignDic.get(sentenceID).put(targetIndex, sourceIndex);
                 }
-
             } else {
                 //empty alignment
                 if (alignLine2Read.equals("")) {
-                    //System.out.println("SentenceStruct " + sentenceID + ": alignment is empty");
                 }
             }
         }

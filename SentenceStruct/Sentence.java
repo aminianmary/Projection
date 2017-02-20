@@ -6,6 +6,7 @@ import java.lang.Object;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.TreeSet;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Created by Maryam Aminian on 12/9/15.
@@ -321,4 +322,19 @@ public class Sentence {
         }else
             return getSyntacticHead(depHeads[wordIndex], indexMap);
     }
+
+    public HashMap<Integer, simplePA> getSimplePAMap (){
+        HashMap<Integer, simplePA> simplePAMap = new HashMap<>();
+        for (PA pa : predicateArguments.getPredicateArgumentsAsArray()){
+            int pIdx = pa.getPredicate().getIndex();
+            String pLabel = pa.getPredicate().getPredicateGoldLabel();
+            HashMap<Integer, String> aMap = new HashMap<>();
+            for (Argument a : pa.getArguments())
+                aMap.put(a.getIndex(), a.getType());
+            simplePA s = new simplePA(pLabel, aMap);
+            simplePAMap.put(pIdx, s);
+        }
+        return simplePAMap;
+    }
+
 }
