@@ -25,9 +25,11 @@ public class Sentence {
     private String[] lemmas_str;
     private TreeSet<Integer>[] reverseDepHeads;
     private PAs predicateArguments;
+    private int numOfDirectComponents;
+    private int numOfLabeledDirectComponents;
+    private String[] fillPredicate;
 
-
-    public Sentence(String sentence, IndexMap indexMap) {
+    public Sentence(String sentence, IndexMap indexMap) throws Exception {
         String[] tokens = sentence.trim().split("\n");
 
         int numTokens = tokens.length + 1; //add one more token for ROOT
@@ -53,6 +55,8 @@ public class Sentence {
         word4ClusterIds[0] = IndexMap.ROOTClusterIdx;
         lemmaClusterIds = new int[numTokens];
         lemmaClusterIds[0] = IndexMap.ROOTClusterIdx;
+        fillPredicate = new String[numTokens];
+        fillPredicate[0] = "_";
 
         reverseDepHeads = new TreeSet[numTokens];
         predicateArguments = new PAs();
@@ -74,6 +78,7 @@ public class Sentence {
             lemmas[index] = indexMap.str2int(fields[3]);
             lemmas_str[index] = fields[3];
             lemmaClusterIds[index] = indexMap.getFullClusterId(fields[3]);
+            fillPredicate[index] = fields[12];
 
             if (reverseDepHeads[depHead] == null) {
                 TreeSet<Integer> children = new TreeSet<Integer>();
@@ -99,6 +104,16 @@ public class Sentence {
                         predicateArguments.setArgument(associatedPredicateSeq, index, argumentType);
                     }
                 }
+            }
+        }
+
+        //finding number of annotated direct components
+        //note: labeled components are words for them projection has not returned "?"
+        for (int i=0; i< numTokens; i++){
+            if (isDirectComponent(i, indexMap)) {
+                numOfDirectComponents++;
+                if (!fillPredicate[i].equals("?"))
+                    numOfLabeledDirectComponents++;
             }
         }
     }
@@ -335,6 +350,20 @@ public class Sentence {
             simplePAMap.put(pIdx, s);
         }
         return simplePAMap;
+    }
+
+    public boolean isDirectComponent (int wordIdx, IndexMap indexMap) throws Exception{
+        if (indexMap.int2str(posTags[wordIdx]).equalsIgnoreCase("VERB") ||
+                indexMap.int2str(posTags[depHeads[wordIdx]]).equalsIgnoreCase("VERB"))
+            return true;
+        return false;
+    }
+
+    public double getCompletenessDegree() {
+        if (numOfDirectComponents == 0)
+            return 1;
+        else
+            return (double) numOfLabeledDirectComponents/numOfDirectComponents;
     }
 
 }

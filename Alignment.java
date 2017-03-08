@@ -61,6 +61,9 @@ public class Alignment {
 
                     if (!targetSourceAlignDic.get(sentenceID).containsKey(targetIndex))
                         targetSourceAlignDic.get(sentenceID).put(targetIndex, sourceIndex);
+                    else
+                        //removes the noisy alignment
+                        targetSourceAlignDic.get(sentenceID).remove(targetIndex);
                 }
             } else {
                 //empty alignment

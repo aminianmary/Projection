@@ -37,4 +37,19 @@ public class IO {
         System.out.print("\n");
         return sentences;
     }
+
+    public static <T> void write(T o, String filePath) throws IOException {
+        FileOutputStream fos = new FileOutputStream(filePath);
+        GZIPOutputStream gz = new GZIPOutputStream(fos);
+        ObjectOutput writer = new ObjectOutputStream(gz);
+        writer.writeObject(o);
+        writer.close();
+    }
+
+    public static <T> T load(String filePath) throws Exception {
+        FileInputStream fis = new FileInputStream(filePath);
+        GZIPInputStream gz = new GZIPInputStream(fis);
+        ObjectInput reader = new ObjectInputStream(gz);
+        return (T) reader.readObject();
+    }
 }
