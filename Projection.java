@@ -9,6 +9,7 @@ import util.IO;
 
 import java.io.*;
 import java.util.*;
+import java.util.regex.Pattern;
 
 public class Projection {
     public static void main(String args[]) throws Exception {
@@ -193,12 +194,17 @@ public class Projection {
                             int twi = alignmentDic.get(swi);
                             String o1 = sourceIndexMap.int2str(sourcePosTags[swi]);
                             String o2 = targetIndexMap.int2str(targetPosTags[twi]);
+
                             if (pFilter(projectionFilters, o1, o2)) {
+
                                 //project word label (either NULL or argument)
                                 String twl = "_";
                                 if (sourceArgs.containsKey(swi)) {
-                                    twl = sourceArgs.get(swi);
-                                    numOfTrainingInstances++;
+                                    //TODO Argument filtering is done just for German!
+                                    if (Pattern.matches("A[0-9]", sourceArgs.get(swi))) {
+                                        twl = sourceArgs.get(swi);
+                                        numOfTrainingInstances++;
+                                    }
                                 }
                                 String sourcePOS2 = sourceIndexMap.int2str(sourcePosTags[swi]);
                                 String sourcePPOS2 = sourceIndexMap.int2str(sourcePosTags[sourceDepHeads[swi]]);
@@ -212,6 +218,7 @@ public class Projection {
                                     projectedArgs.get(twi).put(targetPIdx, twl);
 
                                 projectedInfoMap.put(twi, new ProjectedInfo(sourcePOS2, sourcePPOS2, sourceDepLabel2));
+
                             }
                         }
                     }
