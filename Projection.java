@@ -4,9 +4,7 @@
 import SentenceStruct.*;
 import Structures.IndexMap;
 import Structures.ProjectedInfo;
-import com.sun.tools.javac.code.Source;
 import util.IO;
-
 import java.io.*;
 import java.util.*;
 import java.util.regex.Pattern;
