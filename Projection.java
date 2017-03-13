@@ -24,6 +24,7 @@ public class Projection {
         String targetClusterFilePath = args[5];
         String projectionFilters = args[6];  // PKF (pos kind filter)
         boolean includeSourceInfo = Boolean.parseBoolean(args[7]);
+        boolean projectAM = Boolean.parseBoolean(args[8]);
 
         String filter ="noFilter";
         if (projectionFilters.contains("ps") || projectionFilters.contains("PS"))
@@ -77,7 +78,7 @@ public class Projection {
 
             tAvgSentenceLength += targetSen.getLength();
             Object[] projectionOutput = project(sourceSen, targetSen, alignmentDic.get(senId),
-                    sourceIndexMap, targetIndexMap, projectionFilters);
+                    sourceIndexMap, targetIndexMap, projectionFilters, projectAM);
 
             HashMap<Integer, String> projectedPreds = (HashMap<Integer, String>) projectionOutput[0];
             TreeMap<Integer, TreeMap<Integer, String>> projectedArgs = (TreeMap<Integer, TreeMap<Integer, String>>) projectionOutput[1];
@@ -157,7 +158,8 @@ public class Projection {
     }
 
     public static Object[] project(Sentence sourceSent, Sentence targetSent, HashMap<Integer, Integer> alignmentDic,
-                                   IndexMap sourceIndexMap, IndexMap targetIndexMap, String projectionFilters) throws Exception {
+                                   IndexMap sourceIndexMap, IndexMap targetIndexMap, String projectionFilters,
+                                   boolean projectAM) throws Exception {
         HashMap<Integer, simplePA> sourceSimplePAMap = sourceSent.getSimplePAMap();
         int[] sourcePosTags = sourceSent.getPosTags();
         int[] sourceDepLabels = sourceSent.getDepLabels();
@@ -198,10 +200,13 @@ public class Projection {
                                 //project word label (either NULL or argument)
                                 String twl = "_";
                                 if (sourceArgs.containsKey(swi)) {
-                                    //TODO Argument filtering is done just for German!
-                                    if (Pattern.matches("A[0-9]", sourceArgs.get(swi))) {
-                                        twl = sourceArgs.get(swi);
+                                    String argType = sourceArgs.get(swi);
+                                    if (isCoreArgument(argType)) {
+                                        twl = argType;
                                         numOfTrainingInstances++;
+                                    } else {
+                                        if (projectAM)
+                                            twl = argType;
                                     }
                                 }
                                 String sourcePOS2 = sourceIndexMap.int2str(sourcePosTags[swi]);
@@ -375,6 +380,10 @@ public class Projection {
             return samePosExact(p1, p2);
         else
             return true;
+    }
+
+    public static boolean isCoreArgument (String str){
+        return  Pattern.matches("A[0-9]", str);
     }
 
 }

@@ -43,6 +43,9 @@ public class ProjectionFeaturesAdder {
                 writer.write("\n");
             }
 
+            writer.flush();
+            writer.close();
+
         }catch (Exception e){
             e.printStackTrace();
         }
