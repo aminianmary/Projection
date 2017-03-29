@@ -25,6 +25,7 @@ public class Projection {
         String projectionFilters = args[6];  // PKF (pos kind filter)
         boolean includeSourceInfo = Boolean.parseBoolean(args[7]);
         boolean projectAM = Boolean.parseBoolean(args[8]);
+        boolean depFilter = Boolean.parseBoolean(args[9]);
 
         String filter ="noFilter";
         if (projectionFilters.contains("ps") || projectionFilters.contains("PS"))
@@ -78,7 +79,7 @@ public class Projection {
 
             tAvgSentenceLength += targetSen.getLength();
             Object[] projectionOutput = project(sourceSen, targetSen, alignmentDic.get(senId),
-                    sourceIndexMap, targetIndexMap, projectionFilters, projectAM);
+                    sourceIndexMap, targetIndexMap, projectionFilters, depFilter, projectAM);
 
             HashMap<Integer, String> projectedPreds = (HashMap<Integer, String>) projectionOutput[0];
             TreeMap<Integer, TreeMap<Integer, String>> projectedArgs = (TreeMap<Integer, TreeMap<Integer, String>>) projectionOutput[1];
@@ -159,12 +160,13 @@ public class Projection {
 
     public static Object[] project(Sentence sourceSent, Sentence targetSent, HashMap<Integer, Integer> alignmentDic,
                                    IndexMap sourceIndexMap, IndexMap targetIndexMap, String projectionFilters,
-                                   boolean projectAM) throws Exception {
+                                   boolean depFilter, boolean projectAM) throws Exception {
         HashMap<Integer, simplePA> sourceSimplePAMap = sourceSent.getSimplePAMap();
         int[] sourcePosTags = sourceSent.getPosTags();
         int[] sourceDepLabels = sourceSent.getDepLabels();
         int[] sourceDepHeads = sourceSent.getDepHeads();
         int[] targetPosTags = targetSent.getPosTags();
+        int[] targetDepLabels = targetSent.getDepLabels();
         int numOfTrainingInstances =0;
 
         HashMap<Integer, String> projectedPreds = new HashMap<>();
@@ -178,7 +180,9 @@ public class Projection {
                 int targetPIdx = alignmentDic.get(sourcePIdx);
                 String p1 = sourceIndexMap.int2str(sourcePosTags[sourcePIdx]);
                 String p2 = targetIndexMap.int2str(targetPosTags[targetPIdx]);
-                if (pFilter(projectionFilters, p1, p2)) {
+                int d1 = sourceDepLabels[sourcePIdx];
+                int d2 = targetDepLabels[targetPIdx];
+                if (posFilter(projectionFilters, p1, p2) && depFilter(depFilter, d1, d2)) {
                     //project predicate label
                     String sourceLabel = sspa.getPredicateLabel();
                     String sourcePOS = sourceIndexMap.int2str(sourcePosTags[sourcePIdx]);
@@ -194,8 +198,10 @@ public class Projection {
                             int twi = alignmentDic.get(swi);
                             String o1 = sourceIndexMap.int2str(sourcePosTags[swi]);
                             String o2 = targetIndexMap.int2str(targetPosTags[twi]);
+                            int k1 = sourceDepLabels[swi];
+                            int k2 = targetDepLabels[twi];
 
-                            if (pFilter(projectionFilters, o1, o2)) {
+                            if (posFilter(projectionFilters, o1, o2) && depFilter(depFilter, k1, k2)) {
 
                                 //project word label (either NULL or argument)
                                 String twl = "_";
@@ -237,7 +243,10 @@ public class Projection {
                     int twi = alignmentDic.get(swi);
                     String o1 = sourceIndexMap.int2str(sourcePosTags[swi]);
                     String o2 = targetIndexMap.int2str(targetPosTags[twi]);
-                    if (pFilter(projectionFilters, o1, o2)){
+                    int d1 = sourceDepLabels[swi];
+                    int d2 = targetDepLabels[twi];
+
+                    if (posFilter(projectionFilters, o1, o2) && depFilter(depFilter, d1, d2)){
                         //project "_" label from source to target
                         String sourcePOS = sourceIndexMap.int2str(sourcePosTags[swi]);
                         String sourcePPOS = sourceIndexMap.int2str(sourcePosTags[sourceDepHeads[swi]]);
@@ -373,13 +382,20 @@ public class Projection {
     }
 
 
-    public static boolean pFilter (String projectionFilters, String p1, String p2){
+    public static boolean posFilter(String projectionFilters, String p1, String p2){
         if (projectionFilters.contains("PS") || projectionFilters.contains("ps"))
             return samePosSoft(p1, p2);
         else if (projectionFilters.contains("PE") || projectionFilters.contains("pe"))
             return samePosExact(p1, p2);
         else
             return true;
+    }
+
+    public static boolean depFilter (boolean depFilter, int d1, int d2) {
+        boolean depMatch = false;
+        if (depFilter && d1 == d2)
+            depMatch = true;
+        return depMatch;
     }
 
     public static boolean isCoreArgument (String str){
