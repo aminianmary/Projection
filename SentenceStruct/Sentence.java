@@ -5,6 +5,7 @@ import Structures.IndexMap;
 import java.lang.Object;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 
@@ -364,6 +365,14 @@ public class Sentence {
             return 1;
         else
             return (double) numOfLabeledDirectComponents/numOfDirectComponents;
+    }
+
+    public HashSet<Integer> getArgIndices(){
+        HashSet<Integer> argIndices = new HashSet<>();
+        for (PA pa: predicateArguments.getPredicateArgumentsAsArray()){
+            argIndices.addAll(pa.getArgumentsIndices());
+        }
+        return argIndices;
     }
 
 }

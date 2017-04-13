@@ -22,6 +22,7 @@ public class IndexMap implements Serializable {
     //Note clusterMap can not be a HashMap <int, int> as some of the words in the cluster file are not seen in IndexMap
     private HashMap<String, Integer> wordFullClusterMap;
     private HashMap<Integer, Integer> fullCluster2Cluster4Map;
+    private HashSet<String> depLabes;
 
     public IndexMap(String trainFilePath, String clusterFilePath) throws IOException {
         string2intMap = new HashMap<String, Integer>();
@@ -33,6 +34,7 @@ public class IndexMap implements Serializable {
         HashSet<String> posTags = (HashSet<String>) sets[0];
         HashSet<String> depRels = (HashSet<String>) sets[1];
         HashSet<String> words = (HashSet<String>) sets[2];
+        depLabes = depRels;
 
         for (String posTag : posTags) {
             if (!string2intMap.containsKey(posTag)) {
@@ -175,4 +177,7 @@ public class IndexMap implements Serializable {
             return fullCluster2Cluster4Map.get(fullClusterID);
     }
 
+    public HashSet<String> getDepLabes() {
+        return depLabes;
+    }
 }
