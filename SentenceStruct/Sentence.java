@@ -84,12 +84,14 @@ public class Sentence {
             lemmaClusterIds[index] = indexMap.getFullClusterId(fields[3]);
             fillPredicate[index] = fields[12];
 
-            if (reverseDepHeads[depHead] == null) {
-                TreeSet<Integer> children = new TreeSet<Integer>();
-                children.add(index);
-                reverseDepHeads[depHead] = children;
-            } else
-                reverseDepHeads[depHead].add(index);
+            if (depHead != -1){
+                if (reverseDepHeads[depHead] == null) {
+                    TreeSet<Integer> children = new TreeSet<Integer>();
+                    children.add(index);
+                    reverseDepHeads[depHead] = children;
+                } else
+                    reverseDepHeads[depHead].add(index);
+            }
 
             String predicateGoldLabel = null;
             if (!fields[13].equals("_") && !fields[13].equals("?")) {
