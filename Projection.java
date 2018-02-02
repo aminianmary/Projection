@@ -46,8 +46,14 @@ public class Projection {
         BufferedWriter projectedFileWriter_06 = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(projectedTargetFile+"_0.6_"+ filter), "UTF-8"));
         BufferedWriter projectedSentencesIDWriter_06 = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(projectedTargetFile +"_0.6_"+filter+ ".ids"), "UTF-8"));
 
+        BufferedWriter projectedFileWriter_08 = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(projectedTargetFile+"_0.8_"+ filter), "UTF-8"));
+        BufferedWriter projectedSentencesIDWriter_08 = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(projectedTargetFile +"_0.8_"+filter+ ".ids"), "UTF-8"));
+
+        BufferedWriter projectedFileWriter_09 = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(projectedTargetFile+"_0.9_"+ filter), "UTF-8"));
+        BufferedWriter projectedSentencesIDWriter_09 = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(projectedTargetFile +"_0.9_"+filter+ ".ids"), "UTF-8"));
+
         Alignment alignment = new Alignment(alignmentFile);
-        HashMap<Integer, HashMap<Integer, Integer>> alignmentDic = alignment.getTargetSourceAlignmentDic();
+        HashMap<Integer, HashMap<Integer, Integer>> alignmentDic = alignment.getSourceTargetAlignmentDic();
 
         final IndexMap sourceIndexMap = new IndexMap(sourceFile, sourceClusterFilePath);
         final IndexMap targetIndexMap = new IndexMap(targetFile, targetClusterFilePath);
@@ -55,14 +61,18 @@ public class Projection {
         ArrayList<String> sourceSents = IO.readCoNLLFile(sourceFile);
         ArrayList<String> targetSents = IO.readCoNLLFile(targetFile);
         int numOfProjectedSentence_full = 0;
+        int numOfProjectedSentence_08 = 0;
+        int numOfProjectedSentence_09 = 0;
+        int numOfProjectedSentence_06 = 0;
         int numOfProjectedSentence_04 = 0;
         int numOfProjectedSentence_03 = 0;
-        int numOfProjectedSentence_06 = 0;
 
         int projectedSentencesSizeSum_full = 0;
+        int projectedSentencesSizeSum_08 = 0;
+        int projectedSentencesSizeSum_09 = 0;
+        int projectedSentencesSizeSum_06 = 0;
         int projectedSentencesSizeSum_04 = 0;
         int projectedSentencesSizeSum_03 = 0;
-        int projectedSentencesSizeSum_06 = 0;
 
         int tAvgSentenceLength = 0;
         int numOfTrainingInstances= 0;
@@ -76,9 +86,10 @@ public class Projection {
 
             Sentence sourceSen = new Sentence(sourceSents.get(senId), sourceIndexMap);
             Sentence targetSen = new Sentence(targetSents.get(senId), targetIndexMap);
+            HashMap<Integer, Integer> alignDic = alignmentDic.get(senId);
 
             tAvgSentenceLength += targetSen.getLength();
-            Object[] projectionOutput = project(sourceSen, targetSen, alignmentDic.get(senId),
+            Object[] projectionOutput = project(sourceSen, targetSen, alignDic,
                     sourceIndexMap, targetIndexMap, projectionFilters, depFilter, projectAM);
 
             HashMap<Integer, String> projectedPreds = (HashMap<Integer, String>) projectionOutput[0];
@@ -86,39 +97,57 @@ public class Projection {
             HashMap<Integer, ProjectedInfo> projectedInfoMap = (HashMap<Integer, ProjectedInfo>) projectionOutput[2];
             numOfTrainingInstances = (Integer) projectionOutput[3];
 
-            double trainGainPerWord = (double) numOfTrainingInstances / targetSen.getLength();
+            //double trainGainPerWord = (double) numOfTrainingInstances / targetSen.getLength();
+            double alignedRatio = (double) alignDic.size()/sourceSen.getLength();
             String projectedSen =  writeProjectedRoles(getSentenceForOutput(targetSents.get(senId)),
                     projectedPreds, projectedArgs, projectedInfoMap, includeSourceInfo);
 
-            //writing full projected corpus
+            //writing entire projected corpus
             numOfProjectedSentence_full++;
             projectedSentencesSizeSum_full += targetSen.getLength();
             projectedSentencesIDWriter_full.write(senId + "\n");
             projectedFileWriter_full.write(projectedSen);
 
-            //writing projected sentences with threshold 0.4
-            if (trainGainPerWord >= 0.4) {
+
+            //writing projected sentences with ratio > 0.9
+            if (alignedRatio >= 0.9) {
+                numOfProjectedSentence_09++;
+                projectedSentencesSizeSum_09 += targetSen.getLength();
+                projectedSentencesIDWriter_09.write(senId + "\n");
+                projectedFileWriter_09.write(projectedSen);
+            }
+
+
+            //writing projected sentences with ratio > 0.8
+            if (alignedRatio >= 0.8) {
+                numOfProjectedSentence_08++;
+                projectedSentencesSizeSum_08 += targetSen.getLength();
+                projectedSentencesIDWriter_08.write(senId + "\n");
+                projectedFileWriter_08.write(projectedSen);
+            }
+
+            //writing projected sentences with ratio > 0.6
+            if (alignedRatio >= 0.6) {
+                numOfProjectedSentence_06++;
+                projectedSentencesSizeSum_06 += targetSen.getLength();
+                projectedSentencesIDWriter_06.write(senId + "\n");
+                projectedFileWriter_06.write(projectedSen);
+            }
+
+            //writing projected sentences with ratio > 0.4
+            if (alignedRatio >= 0.4) {
                 numOfProjectedSentence_04++;
                 projectedSentencesSizeSum_04 += targetSen.getLength();
                 projectedSentencesIDWriter_04.write(senId + "\n");
                 projectedFileWriter_04.write(projectedSen);
             }
 
-
-            //writing projected sentences with threshold 0.3
-            if (trainGainPerWord >= 0.3) {
+            //writing projected sentences with ratio > 0.3
+            if (alignedRatio >= 0.3) {
                 numOfProjectedSentence_03++;
                 projectedSentencesSizeSum_03 += targetSen.getLength();
                 projectedSentencesIDWriter_03.write(senId + "\n");
                 projectedFileWriter_03.write(projectedSen);
-            }
-
-            //writing projected sentences with threshold 0.6
-            if (trainGainPerWord >= 0.6) {
-                numOfProjectedSentence_06++;
-                projectedSentencesSizeSum_06 += targetSen.getLength();
-                projectedSentencesIDWriter_06.write(senId + "\n");
-                projectedFileWriter_06.write(projectedSen);
             }
 
         }
@@ -127,19 +156,41 @@ public class Projection {
         System.out.println("Average length of projected sentences in full corpus: " +
                 (double) projectedSentencesSizeSum_full / numOfProjectedSentence_full);
 
+        System.out.println("Average length of projected sentences with train gain > 0.9: " +
+                (double) projectedSentencesSizeSum_09 / numOfProjectedSentence_09);
+
+        System.out.println("Average length of projected sentences with train gain > 0.8: " +
+                (double) projectedSentencesSizeSum_08 / numOfProjectedSentence_08);
+
+        System.out.println("Average length of projected sentences with train gain > 0.6: " +
+                (double) projectedSentencesSizeSum_06 / numOfProjectedSentence_06);
+
         System.out.println("Average length of projected sentences with train gain > 0.4: " +
                 (double) projectedSentencesSizeSum_04 / numOfProjectedSentence_04);
 
         System.out.println("Average length of projected sentences with train gain > 0.3: " +
                 (double) projectedSentencesSizeSum_03 / numOfProjectedSentence_03);
 
-        System.out.println("Average length of projected sentences with train gain > 0.6: " +
-                (double) projectedSentencesSizeSum_06 / numOfProjectedSentence_06);
 
         projectedFileWriter_full.flush();
         projectedFileWriter_full.close();
         projectedSentencesIDWriter_full.flush();
         projectedSentencesIDWriter_full.close();
+
+        projectedFileWriter_08.flush();
+        projectedFileWriter_08.close();
+        projectedSentencesIDWriter_08.flush();
+        projectedSentencesIDWriter_08.close();
+
+        projectedFileWriter_09.flush();
+        projectedFileWriter_09.close();
+        projectedSentencesIDWriter_09.flush();
+        projectedSentencesIDWriter_09.close();
+
+        projectedFileWriter_06.flush();
+        projectedFileWriter_06.close();
+        projectedSentencesIDWriter_06.flush();
+        projectedSentencesIDWriter_06.close();
 
         projectedFileWriter_04.flush();
         projectedFileWriter_04.close();
@@ -152,10 +203,6 @@ public class Projection {
         projectedSentencesIDWriter_03.flush();
         projectedSentencesIDWriter_03.close();
 
-        projectedFileWriter_06.flush();
-        projectedFileWriter_06.close();
-        projectedSentencesIDWriter_06.flush();
-        projectedSentencesIDWriter_06.close();
     }
 
     public static Object[] project(Sentence sourceSent, Sentence targetSent, HashMap<Integer, Integer> alignmentDic,
@@ -206,15 +253,18 @@ public class Projection {
                                 //analysSourceTargetDependencyMatch word label (either NULL or argument)
                                 String twl = "_";
                                 if (sourceArgs.containsKey(swi)) {
+                                    numOfTrainingInstances++;
                                     String argType = sourceArgs.get(swi);
                                     if (isCoreArgument(argType)) {
                                         twl = argType;
-                                        numOfTrainingInstances++;
                                     } else {
                                         if (projectAM)
                                             twl = argType;
                                     }
                                 }
+                                else
+                                    numOfTrainingInstances++;
+
                                 String sourcePOS2 = sourceIndexMap.int2str(sourcePosTags[swi]);
                                 String sourcePPOS2 = sourceIndexMap.int2str(sourcePosTags[sourceDepHeads[swi]]);
                                 String sourceDepLabel2 = sourceIndexMap.int2str(sourceDepLabels[swi]);
@@ -235,7 +285,7 @@ public class Projection {
             }
         }
 
-        //analysSourceTargetDependencyMatch source non-predicate words
+        //analyseSourceTargetDependencyMatch source non-predicate words
         for (int swi = 1; swi < sourceSent.getLength(); swi++){
             if (!sourceSimplePAMap.containsKey(swi)){
                 //not a predicate in the source sentence
@@ -251,7 +301,7 @@ public class Projection {
                         String sourcePOS = sourceIndexMap.int2str(sourcePosTags[swi]);
                         String sourcePPOS = sourceIndexMap.int2str(sourcePosTags[sourceDepHeads[swi]]);
                         String sourceDepLabel = sourceIndexMap.int2str(sourceDepLabels[swi]);
-
+                        numOfTrainingInstances++;
                         if (!projectedPreds.containsKey(twi)) {
                             projectedPreds.put(twi, "_");
                             projectedInfoMap.put(twi, new ProjectedInfo(sourcePOS, sourcePPOS, sourceDepLabel));

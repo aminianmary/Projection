@@ -29,6 +29,7 @@ public class Sentence {
     private int numOfDirectComponents;
     private int numOfLabeledDirectComponents;
     private String[] fillPredicate;
+    HashMap<Integer, HashSet<Integer>> undecidedArgs;
 
     public Sentence(String sentence, IndexMap indexMap) throws Exception {
         String[] tokens = sentence.trim().split("\n");
@@ -58,6 +59,8 @@ public class Sentence {
         lemmaClusterIds[0] = IndexMap.ROOTClusterIdx;
         fillPredicate = new String[numTokens];
         fillPredicate[0] = "_";
+        undecidedArgs = new HashMap<>();
+
 
         reverseDepHeads = new TreeSet[numTokens];
         predicateArguments = new PAs();
@@ -67,7 +70,7 @@ public class Sentence {
             String[] fields = token.split("\t");
 
             int index = Integer.parseInt(fields[0]);
-            int depHead = Integer.parseInt(fields[9]);
+            int depHead = (fields[9].equals("_")) ? -1 : Integer.parseInt(fields[9]);
             depHeads[index] = depHead;
 
             words[index] = indexMap.str2int(fields[1]);
@@ -89,7 +92,7 @@ public class Sentence {
                 reverseDepHeads[depHead].add(index);
 
             String predicateGoldLabel = null;
-            if (!fields[13].equals("_")) {
+            if (!fields[13].equals("_") && !fields[13].equals("?")) {
                 predicatesSeq++;
                 predicateGoldLabel = fields[13];
                 predicateArguments.setPredicate(predicatesSeq, index, predicateGoldLabel);
@@ -98,11 +101,21 @@ public class Sentence {
             if (fields.length > 14) //we have at least one argument
             {
                 for (int i = 14; i < fields.length; i++) {
-                    if (!fields[i].equals("_")) //found an argument
+                    int associatedPredicateSeq = i - 14;
+                    String argumentType = fields[i];
+                    if (!argumentType.equals("_")) //found an argument
                     {
-                        String argumentType = fields[i];
-                        int associatedPredicateSeq = i - 14;
-                        predicateArguments.setArgument(associatedPredicateSeq, index, argumentType);
+                        if (!argumentType.equals("?")) {
+                            predicateArguments.setArgument(associatedPredicateSeq, index, argumentType);
+                        }else {
+                            if (!undecidedArgs.containsKey(associatedPredicateSeq)) {
+                                HashSet<Integer> temp = new HashSet<>();
+                                temp.add(index);
+                                undecidedArgs.put(associatedPredicateSeq, temp);
+                            } else {
+                                undecidedArgs.get(associatedPredicateSeq).add(index);
+                            }
+                        }
                     }
                 }
             }
@@ -375,4 +388,11 @@ public class Sentence {
         return argIndices;
     }
 
+    public HashMap<Integer, HashSet<Integer>> getUndecidedArgs() {
+        return undecidedArgs;
+    }
+
+    public String[] getFillPredicate() {
+        return fillPredicate;
+    }
 }

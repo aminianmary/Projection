@@ -33,7 +33,9 @@ public class DependencyLabelsAnalyser {
         String sourceClusterFilePath = args[3];
         String targetClusterFilePath = args[4];
         String projectionFilters = args[5];
-        double sparsityThreshold = Double.parseDouble(args[6]);
+        double sparsityThresholdStart = Double.parseDouble(args[6]);
+        double sparsityThresholdEnd = Double.parseDouble(args[6]);
+
 
         Alignment alignment = new Alignment(alignmentFile);
         HashMap<Integer, HashMap<Integer, Integer>> alignmentDic = alignment.getSourceTargetAlignmentDic();
@@ -56,19 +58,19 @@ public class DependencyLabelsAnalyser {
             int maxNumOfProjectedLabels = dla.getNumOfProjectedLabels(sourceSen, alignmentDic.get(senId));
             double trainGainPerWord = (double) maxNumOfProjectedLabels/targetSen.getLength();
 
-            if (trainGainPerWord >= sparsityThreshold){
+            if (trainGainPerWord >= sparsityThresholdStart && trainGainPerWord< sparsityThresholdEnd) {
                 dla.analysSourceTargetDependencyMatch(sourceSen, targetSen, alignmentDic.get(senId),
-                        sourceIndexMap, targetIndexMap, projectionFilters, sparsityThreshold);
+                        sourceIndexMap, targetIndexMap, projectionFilters);
             }
         }
         System.out.print(sourceSents.size() + "\n");
-        dla.writeConfusionMatrix("ConfusionMatrix.out", sourceIndexMap, targetIndexMap);
+        dla.writeConfusionMatrix("confusion_"+sparsityThresholdStart+"_"+sparsityThresholdEnd+".out", sourceIndexMap, targetIndexMap);
     }
 
     public void analysSourceTargetDependencyMatch(Sentence sourceSent, Sentence targetSent,
                                                   HashMap<Integer, Integer> alignmentDic,
                                                   IndexMap sourceIndexMap, IndexMap targetIndexMap,
-                                                  String projectionFilters, double sparsityThreshold)
+                                                  String projectionFilters)
             throws Exception {
 
         HashMap<Integer, simplePA> sourcePAMap = sourceSent.getSimplePAMap();
