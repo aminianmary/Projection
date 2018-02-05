@@ -70,7 +70,7 @@ public class Sentence {
             String[] fields = token.split("\t");
 
             int index = Integer.parseInt(fields[0]);
-            int depHead = (fields[9].equals("_")) ? -1 : Integer.parseInt(fields[9]);
+            int depHead = (fields[9].equals("_")) ? IndexMap.nullIdx : Integer.parseInt(fields[9]);
             depHeads[index] = depHead;
 
             words[index] = indexMap.str2int(fields[1]);
@@ -84,17 +84,16 @@ public class Sentence {
             lemmaClusterIds[index] = indexMap.getFullClusterId(fields[3]);
             fillPredicate[index] = fields[12];
 
-            if (depHead != -1){
-                if (reverseDepHeads[depHead] == null) {
-                    TreeSet<Integer> children = new TreeSet<Integer>();
-                    children.add(index);
-                    reverseDepHeads[depHead] = children;
-                } else
-                    reverseDepHeads[depHead].add(index);
-            }
+            if (reverseDepHeads[depHead] == null) {
+                TreeSet<Integer> children = new TreeSet<Integer>();
+                children.add(index);
+                reverseDepHeads[depHead] = children;
+            } else
+                reverseDepHeads[depHead].add(index);
+
 
             String predicateGoldLabel = null;
-            if (!fields[13].equals("_") && !fields[13].equals("?")) {
+            if (fields[12].equals("Y")) {
                 predicatesSeq++;
                 predicateGoldLabel = fields[13];
                 predicateArguments.setPredicate(predicatesSeq, index, predicateGoldLabel);
