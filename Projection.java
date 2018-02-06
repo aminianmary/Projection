@@ -55,11 +55,16 @@ public class Projection {
         Alignment alignment = new Alignment(alignmentFile);
         HashMap<Integer, HashMap<Integer, Integer>> alignmentDic = alignment.getSourceTargetAlignmentDic();
 
+        System.out.print("building indexMaps...");
         final IndexMap sourceIndexMap = new IndexMap(sourceFile, sourceClusterFilePath);
         final IndexMap targetIndexMap = new IndexMap(targetFile, targetClusterFilePath);
+        System.out.print("done!");
 
+        System.out.print("reading sentences...");
         ArrayList<String> sourceSents = IO.readCoNLLFile(sourceFile);
         ArrayList<String> targetSents = IO.readCoNLLFile(targetFile);
+        System.out.print("done!");
+
         int numOfProjectedSentence_full = 0;
         int numOfProjectedSentence_08 = 0;
         int numOfProjectedSentence_09 = 0;

@@ -14,19 +14,25 @@ public class IO {
         ArrayList<String> sentences = new ArrayList<String>();
         String line2read = "";
         int counter = 0;
-        String sentence = "";
+        StringBuilder sentence = new StringBuilder();
         while ((line2read = reader.readLine()) != null) {
             if (line2read.equals("")) //sentence break
             {
                 counter++;
+
                 if (counter % 100000 == 0)
                     System.out.print(counter);
                 else if (counter % 10000 == 0)
                     System.out.print(".");
-                sentences.add(sentence);
-                sentence = "";
-            } else
-                sentence+=line2read+'\n';
+
+                String senText = sentence.toString().trim();
+                if (senText.length() > 0)
+                    sentences.add(senText);
+                sentence = new StringBuilder();
+            } else {
+                sentence.append(line2read);
+                sentence.append("\n");
+            }
         }
         System.out.print("\n");
         return sentences;
